@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>JSON 解析工具 | 在线验证 & 格式化</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: linear-gradient(135deg, #f0f4ff 0%, #e6edf7 100%);
+            font-family: 'Inter', -apple-system, 'Segoe UI', sans-serif;
+            min-height: 100vh;
+            padding: 1.5rem;
+        }
+        .app-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 2rem;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+            overflow: hidden;
+        }
+        .app-header {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            padding: 1.5rem 2rem;
+            color: white;
+        }
+        .app-header h1 {
+            font-size: 1.8rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .app-header h1:before {
+            content: "{ }";
+            background: #3b82f6;
+            padding: 0.3rem 0.9rem;
+            border-radius: 16px;
+            font-size: 1.3rem;
+        }
+        .subhead {
+            color: #94a3b8;
+            margin-top: 0.5rem;
+        }
+        .main-panel {
+            display: flex;
+            flex-wrap: wrap;
+        }
+        .input-panel, .output-panel {
+            flex: 1;
+            min-width: 300px;
+            padding: 1.8rem;
+        }
+        .input-panel {
+            border-right: 1px solid #e2e8f0;
+        }
+        .section-title {
+            font-weight: 700;
+            margin-bottom: 1rem;
+            padding-left: 10px;
+            border-left: 4px solid #3b82f6;
+        }
+        .json-editor {
+            width: 100%;
+            height: 400px;
+            padding: 1rem;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 0.85rem;
+            background: #fafdff;
+            border: 1px solid #d1dfef;
+            border-radius: 1rem;
+            resize: vertical;
+            outline: none;
+        }
+        .json-editor:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+        }
+        .button-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 1rem;
+        }
+        .btn {
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 2rem;
+            font-weight: 500;
+            cursor: pointer;
+            background: #f1f5f9;
+        }
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+        .result-area {
+            background: #0f172a;
+            border-radius: 1rem;
+            overflow: auto;
+            max-height: 480px;
+        }
+        .json-preview {
+            margin: 0;
+            padding: 1rem;
+            font-family: 'SF Mono', monospace;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            color: #e2e8f0;
+            background: #0f172a;
+            min-height: 400px;
+        }
+        .status-bar {
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+        }
+        .valid-status {
+            background: #dcfce7;
+            padding: 0.25rem 1rem;
+            border-radius: 30px;
+            font-size: 0.75rem;
+            color: #166534;
+        }
+        .invalid-status {
+            background: #fee2e2;
+            padding: 0.25rem 1rem;
+            border-radius: 30px;
+            color: #991b1b;
+        }
+        .neutral-status {
+            background: #e2e8f0;
+            padding: 0.25rem 1rem;
+            border-radius: 30px;
+            color: #334155;
+        }
+        .error-message {
+            background: #fef2f2;
+            border-left: 5px solid #ef4444;
+            padding: 0.75rem;
+            border-radius: 1rem;
+            margin-top: 0.8rem;
+            font-size: 0.8rem;
+            color: #b91c1c;
+        }
+        .info-footer {
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            padding: 1rem 2rem;
+            font-size: 0.7rem;
+            text-align: center;
+            color: #475569;
+        }
+        .json-key { color: #7dd3fc; }
+        .json-string { color: #bef264; }
+        .json-number { color: #facc15; }
+        .json-boolean { color: #f9a8d4; }
+        .json-null { color: #9ca3af; }
+        @media (max-width: 780px) {
+            .input-panel, .output-panel { padding: 1rem; }
+            .json-editor { height: 280px; }
+        }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <div class="app-header">
+        <h1>JSON 解析工具</h1>
+        <div class="subhead">验证 · 格式化 · 语法高亮 · 隐私安全</div>
+    </div>
+    <div class="main-panel">
+        <div class="input-panel">
+            <div class="section-title">📝 JSON 输入</div>
+            <textarea id="jsonInput" class="json-editor" placeholder='示例：{"name": "JSON工具", "version": 1.0}'></textarea>
+            <div class="button-bar">
+                <button class="btn btn-primary" id="parseBtn">🔍 解析 & 格式化</button>
+                <button class="btn" id="compressBtn">⚡ 压缩</button>
+                <button class="btn" id="clearBtn">🗑️ 清空</button>
+                <button class="btn" id="sampleBtn">📋 示例</button>
+            </div>
+        </div>
+        <div class="output-panel">
+            <div class="section-title">✨ 解析结果</div>
+            <div class="status-bar">
+                <span id="statusBadge" class="neutral-status">⚪ 等待解析</span>
+                <span id="statsInfo"></span>
+            </div>
+            <div class="result-area">
+                <pre id="jsonPreview" class="json-preview">// 在左侧输入 JSON，点击「解析 & 格式化」</pre>
+            </div>
+            <div id="errorContainer" class="error-message" style="display:none;"></div>
+        </div>
+    </div>
+    <div class="info-footer">
+        🔐 所有数据在本地处理，不会上传服务器 · 支持 Ctrl/Cmd+Enter 快速解析
+    </div>
+</div>
+<script>
+    const textarea = document.getElementById('jsonInput');
+    const parseBtn = document.getElementById('parseBtn');
+    const compressBtn = document.getElementById('compressBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const sampleBtn = document.getElementById('sampleBtn');
+    const jsonPreview = document.getElementById('jsonPreview');
+    const statusBadge = document.getElementById('statusBadge');
+    const statsInfo = document.getElementById('statsInfo');
+    const errorContainer = document.getElementById('errorContainer');
+
+    function escapeHtml(str) {
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+
+    function syntaxHighlight(obj) {
+        let jsonString = JSON.stringify(obj, null, 2);
+        let escaped = escapeHtml(jsonString);
+        escaped = escaped.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*")(\s*:)/g, '<span class="json-key">$1</span>$3');
+        escaped = escaped.replace(/:(\s*)("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*")/g, ':$1<span class="json-string">$2</span>');
+        escaped = escaped.replace(/:\s*(-?\d+\.?\d*([eE][+-]?\d+)?)/g, ': <span class="json-number">$1</span>');
+        escaped = escaped.replace(/:\s*(true|false)\b/g, ': <span class="json-boolean">$1</span>');
+        escaped = escaped.replace(/:\s*(null)\b/g, ': <span class="json-null">$1</span>');
+        return escaped;
+    }
+
+    function displaySuccess(parsed) {
+        jsonPreview.innerHTML = syntaxHighlight(parsed);
+        statusBadge.className = 'valid-status';
+        statusBadge.innerHTML = '✅ JSON 有效';
+        errorContainer.style.display = 'none';
+        const len = JSON.stringify(parsed).length;
+        statsInfo.innerHTML = `📊 ${len} 字符`;
+    }
+
+    function displayError(msg) {
+        jsonPreview.innerHTML = '❌ 无效的 JSON 格式';
+        statusBadge.className = 'invalid-status';
+        statusBadge.innerHTML = '❌ JSON 无效';
+        errorContainer.style.display = 'block';
+        errorContainer.innerHTML = `解析错误: ${msg}`;
+        statsInfo.innerHTML = '';
+    }
+
+    function parseAndRender() {
+        const raw = textarea.value;
+        if (raw.trim() === '') {
+            jsonPreview.innerHTML = '// 请输入 JSON 数据';
+            statusBadge.className = 'neutral-status';
+            statusBadge.innerHTML = '⚪ 等待解析';
+            errorContainer.style.display = 'none';
+            return;
+        }
+        try {
+            const parsed = JSON.parse(raw);
+            displaySuccess(parsed);
+        } catch (err) {
+            displayError(err.message);
+        }
+    }
+
+    function compressAndUpdate() {
+        const raw = textarea.value;
+        if (raw.trim() === '') return;
+        try {
+            const parsed = JSON.parse(raw);
+            const compact = JSON.stringify(parsed);
+            textarea.value = compact;
+            displaySuccess(parsed);
+        } catch (err) {
+            displayError(err.message);
+        }
+    }
+
+    function clearAll() {
+        textarea.value = '';
+        jsonPreview.innerHTML = '// 已清空，输入 JSON 后点击解析';
+        statusBadge.className = 'neutral-status';
+        statusBadge.innerHTML = '⚪ 等待解析';
+        errorContainer.style.display = 'none';
+        statsInfo.innerHTML = '';
+    }
+
+    function loadSample() {
+        const sample = {
+            "name": "JSON 解析工具",
+            "version": "1.0",
+            "features": ["验证", "格式化", "高亮", "压缩"],
+            "author": {"name": "Web Tool", "active": true},
+            "stats": {"users": 1000, "rating": 4.8}
+        };
+        textarea.value = JSON.stringify(sample, null, 2);
+        parseAndRender();
+    }
+
+    parseBtn.addEventListener('click', () => {
+        const raw = textarea.value;
+        if (raw.trim() === '') return;
+        try {
+            const parsed = JSON.parse(raw);
+            const pretty = JSON.stringify(parsed, null, 2);
+            textarea.value = pretty;
+            displaySuccess(parsed);
+        } catch (err) {
+            displayError(err.message);
+        }
+    });
+    compressBtn.addEventListener('click', compressAndUpdate);
+    clearBtn.addEventListener('click', clearAll);
+    sampleBtn.addEventListener('click', loadSample);
+    textarea.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            e.preventDefault();
+            parseBtn.click();
+        }
+    });
+</script>
+</body>
+</html>
