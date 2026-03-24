@@ -63,10 +63,32 @@
             margin-bottom: 1rem;
             padding-left: 10px;
             border-left: 4px solid #3b82f6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .btn-copy {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 5px 16px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-left: auto;
+        }
+        .btn-copy:hover {
+            background: #2563eb;
+            transform: translateY(-1px);
         }
         .json-editor {
             width: 100%;
-            height: 320px;
+            height: 380px;
             padding: 1rem;
             font-family: 'SF Mono', 'Fira Code', monospace;
             font-size: 0.85rem;
@@ -93,6 +115,10 @@
             font-weight: 500;
             cursor: pointer;
             background: #f1f5f9;
+            transition: all 0.2s;
+        }
+        .btn:hover {
+            transform: translateY(-1px);
         }
         .btn-primary {
             background: #3b82f6;
@@ -105,7 +131,7 @@
             background: #0f172a;
             border-radius: 1rem;
             overflow: auto;
-            max-height: 380px;
+            max-height: 450px;
         }
         .json-preview {
             margin: 0;
@@ -116,12 +142,13 @@
             white-space: pre-wrap;
             color: #e2e8f0;
             background: #0f172a;
-            min-height: 400px;
+            min-height: 380px;
         }
         .status-bar {
             margin-bottom: 1rem;
             display: flex;
             justify-content: space-between;
+            align-items: center;
         }
         .valid-status {
             background: #dcfce7;
@@ -164,16 +191,30 @@
         .json-number { color: #facc15; }
         .json-boolean { color: #f9a8d4; }
         .json-null { color: #9ca3af; }
+        
+        /* 复制提示动画 */
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateX(-50%) translateY(10px); }
+            15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            85% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+        }
+        .copy-toast {
+            animation: fadeInOut 1.5s ease;
+        }
+        
         @media (max-width: 780px) {
             .input-panel, .output-panel { padding: 1rem; }
             .json-editor { height: 280px; }
+            .result-area { max-height: 350px; }
+            .json-preview { min-height: 280px; }
         }
     </style>
 </head>
 <body>
 <div class="app-container">
     <div class="app-header">
-        <h1>快手内审自研 JSON 解析工具</h1>
+        <h1>JSON 解析工具</h1>
         <div class="subhead">验证 · 格式化 · 语法高亮 · 隐私安全</div>
     </div>
     <div class="main-panel">
@@ -188,7 +229,10 @@
             </div>
         </div>
         <div class="output-panel">
-            <div class="section-title">✨ 解析结果</div>
+            <div class="section-title">
+                <span>✨ 解析结果</span>
+                <button id="copyResultBtn" class="btn-copy">📋 复制结果</button>
+            </div>
             <div class="status-bar">
                 <span id="statusBadge" class="neutral-status">⚪ 等待解析</span>
                 <span id="statsInfo"></span>
@@ -200,7 +244,7 @@
         </div>
     </div>
     <div class="info-footer">
-        🔐 所有数据在本地处理，不会上传服务器 · 支持 Ctrl/Cmd+Enter 快速解析
+        🔐 所有数据在本地处理，不会上传服务器 · 支持 Ctrl/Cmd+Enter 快速解析 · 点击「复制结果」一键复制
     </div>
 </div>
 <script>
@@ -209,6 +253,7 @@
     const compressBtn = document.getElementById('compressBtn');
     const clearBtn = document.getElementById('clearBtn');
     const sampleBtn = document.getElementById('sampleBtn');
+    const copyResultBtn = document.getElementById('copyResultBtn');
     const jsonPreview = document.getElementById('jsonPreview');
     const statusBadge = document.getElementById('statusBadge');
     const statsInfo = document.getElementById('statsInfo');
@@ -234,6 +279,76 @@
         return escaped;
     }
 
+    function showToast(msg, duration = 1500) {
+        const existingToast = document.querySelector('.copy-toast');
+        if (existingToast) existingToast.remove();
+        
+        const toast = document.createElement('div');
+        toast.className = 'copy-toast';
+        toast.textContent = msg;
+        toast.style.cssText = `
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1e293b;
+            color: white;
+            padding: 10px 24px;
+            border-radius: 40px;
+            font-size: 0.85rem;
+            z-index: 1000;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            font-weight: 500;
+        `;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.remove();
+        }, duration);
+    }
+
+    function copyFormattedJson() {
+        const rawInput = textarea.value;
+        let textToCopy = '';
+        
+        try {
+            if (rawInput.trim() !== '') {
+                const parsed = JSON.parse(rawInput);
+                textToCopy = JSON.stringify(parsed, null, 2);
+            } else {
+                const previewText = jsonPreview.innerText || '';
+                if (previewText.includes('无效') || previewText.includes('等待') || previewText.includes('请输入')) {
+                    showToast('⚠️ 没有可复制的内容', 1500);
+                    return;
+                }
+                textToCopy = previewText;
+            }
+        } catch(e) {
+            const previewText = jsonPreview.innerText || '';
+            if (previewText.includes('无效') || previewText.includes('等待')) {
+                showToast('⚠️ 没有有效的 JSON 可复制', 1500);
+                return;
+            }
+            textToCopy = previewText;
+        }
+        
+        if (!textToCopy || textToCopy.trim() === '' || textToCopy.includes('无效')) {
+            showToast('⚠️ 没有可复制的内容', 1500);
+            return;
+        }
+        
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            showToast('✅ 已复制 JSON 到剪贴板', 1500);
+            const originalText = copyResultBtn.innerHTML;
+            copyResultBtn.innerHTML = '✓ 已复制';
+            setTimeout(() => {
+                copyResultBtn.innerHTML = originalText;
+            }, 1500);
+        }).catch(() => {
+            showToast('❌ 复制失败，请手动选择', 1500);
+        });
+    }
+
     function displaySuccess(parsed) {
         jsonPreview.innerHTML = syntaxHighlight(parsed);
         statusBadge.className = 'valid-status';
@@ -244,7 +359,7 @@
     }
 
     function displayError(msg) {
-        jsonPreview.innerHTML = '❌ 无效的 JSON 格式';
+        jsonPreview.innerHTML = '❌ 无效的 JSON 格式\n\n错误信息：\n' + msg;
         statusBadge.className = 'invalid-status';
         statusBadge.innerHTML = '❌ JSON 无效';
         errorContainer.style.display = 'block';
@@ -277,6 +392,7 @@
             const compact = JSON.stringify(parsed);
             textarea.value = compact;
             displaySuccess(parsed);
+            showToast('⚡ 已压缩为紧凑格式', 1000);
         } catch (err) {
             displayError(err.message);
         }
@@ -294,13 +410,14 @@
     function loadSample() {
         const sample = {
             "name": "JSON 解析工具",
-            "version": "1.0",
-            "features": ["验证", "格式化", "高亮", "压缩"],
-            "author": {"name": "Web Tool", "active": true},
-            "stats": {"users": 1000, "rating": 4.8}
+            "version": "2.0",
+            "features": ["验证", "格式化", "高亮", "压缩", "一键复制"],
+            "author": {"name": "Web Tool", "active": true, "since": 2026},
+            "stats": {"users": 1250, "rating": 4.9, "stars": null}
         };
         textarea.value = JSON.stringify(sample, null, 2);
         parseAndRender();
+        showToast('✨ 示例数据已加载', 1000);
     }
 
     parseBtn.addEventListener('click', () => {
@@ -315,9 +432,15 @@
             displayError(err.message);
         }
     });
+    
     compressBtn.addEventListener('click', compressAndUpdate);
     clearBtn.addEventListener('click', clearAll);
     sampleBtn.addEventListener('click', loadSample);
+    
+    if (copyResultBtn) {
+        copyResultBtn.addEventListener('click', copyFormattedJson);
+    }
+    
     textarea.addEventListener('keydown', (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
             e.preventDefault();
